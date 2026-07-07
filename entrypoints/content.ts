@@ -5,16 +5,16 @@ export default defineContentScript({
   },
 });
 
-import { listShortcuts } from '@/utils/db';
 import { findExpansion, isExpansionKey } from '@/utils/expansion';
-import { getSettings } from '@/utils/settings';
+import type { ExtensionRequest, ExtensionResponse } from '@/utils/messages';
+import type { Settings, Shortcut } from '@/utils/types';
 
 async function handleKeydown(event: KeyboardEvent) {
   if (!isExpansionKey(event.key) || event.ctrlKey || event.metaKey || event.altKey) {
     return;
   }
 
-  const settings = await getSettings();
+  const settings = await getSettingsFromExtension();
 
   if (!settings.enabled) {
     return;
@@ -44,7 +44,7 @@ async function expandPlainTextField(
     return;
   }
 
-  const shortcuts = await listShortcuts();
+  const shortcuts = await listShortcutsFromExtension();
   const match = findExpansion(field.value.slice(0, caret), shortcuts);
 
   if (!match) {
@@ -73,7 +73,7 @@ async function expandContentEditable(event: KeyboardEvent, editable: HTMLElement
   beforeRange.selectNodeContents(editable);
   beforeRange.setEnd(range.startContainer, range.startOffset);
 
-  const shortcuts = await listShortcuts();
+  const shortcuts = await listShortcutsFromExtension();
   const textBeforeCaret = beforeRange.toString();
   const match = findExpansion(textBeforeCaret, shortcuts);
 
@@ -123,4 +123,18 @@ function findTextPosition(root: HTMLElement, characterOffset: number) {
   const textNode = document.createTextNode('');
   root.append(textNode);
   return { node: textNode, offset: 0 };
+}
+
+async function sendExtensionRequest(request: ExtensionRequest): Promise<ExtensionResponse> {
+  return browser.runtime.sendMessage(request);
+}
+
+async function listShortcutsFromExtension(): Promise<Shortcut[]> {
+  const response = await sendExtensionRequest({ type: 'shortcuts:list' });
+  return response.shortcuts ?? [];
+}
+
+async function getSettingsFromExtension(): Promise<Settings> {
+  const response = await sendExtensionRequest({ type: 'settings:get' });
+  return response.settings ?? { enabled: true };
 }
