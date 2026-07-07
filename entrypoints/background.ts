@@ -1,3 +1,5 @@
 export default defineBackground(() => {
-  console.log('Hello background!', { id: browser.runtime.id });
+  browser.runtime.onInstalled.addListener(() => {
+    console.info('Local Shortcut Expander installed.');
+  });
 });
