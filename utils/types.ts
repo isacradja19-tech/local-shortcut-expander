@@ -3,6 +3,7 @@ export type Shortcut = {
   trigger: string;
   content: string;
   label?: string;
+  /** Absent ou `true` = actif. Seul `false` désactive. */
   enabled?: boolean;
   createdAt: number;
   updatedAt: number;
@@ -10,6 +11,12 @@ export type Shortcut = {
 
 export type Settings = {
   enabled: boolean;
+};
+
+/** Ce que le content script met en cache : un seul aller-retour au chargement. */
+export type ExtensionState = {
+  settings: Settings;
+  shortcuts: Shortcut[];
 };
 
 export type ShortcutDraft = {

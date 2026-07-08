@@ -1,23 +1,44 @@
-const TRIGGER_PATTERN = /(?:^|\s)(\/[A-Za-z0-9_-]+)$/;
+/** Borne la longueur d'un trigger, et donc le texte analysé à chaque frappe. */
+export const MAX_TRIGGER_LENGTH = 64;
 
-export function isExpansionKey(key: string) {
-  return key === ' ' || key === 'Tab' || key === 'Enter';
+const TRIGGER_PREFIX = '/';
+const TRIGGER_BODY = 'A-Za-z0-9_-';
+
+const BOUNDARY = '\\s(\\[{<>"\'`,;:\\u200b\\ufeff';
+
+const TRIGGER_PATTERN = new RegExp(
+  `(?:^|[${BOUNDARY}])(${TRIGGER_PREFIX}[${TRIGGER_BODY}]{1,${MAX_TRIGGER_LENGTH}})$`,
+);
+
+const VALID_TRIGGER_PATTERN = new RegExp(
+  `^${TRIGGER_PREFIX}[${TRIGGER_BODY}]{1,${MAX_TRIGGER_LENGTH}}$`,
+);
+
+
+const SCAN_WINDOW = MAX_TRIGGER_LENGTH + 2;
+
+export const EXPANSION_KEYS: ReadonlySet<string> = new Set([' ', 'Tab', 'Enter']);
+
+export function isExpansionKey(key: string): boolean {
+  return EXPANSION_KEYS.has(key);
 }
 
-export function findTriggerBeforeCaret(textBeforeCaret: string) {
-  const match = textBeforeCaret.match(TRIGGER_PATTERN);
-  return match?.[1] ?? null;
+export function findTriggerBeforeCaret(textBeforeCaret: string): string | null {
+  const tail = textBeforeCaret.slice(-SCAN_WINDOW);
+  return tail.match(TRIGGER_PATTERN)?.[1] ?? null;
 }
 
-export function findDelimitedTriggerBeforeCaret(textBeforeCaret: string) {
-  const match = textBeforeCaret.match(/(?:^|\s)(\/[A-Za-z0-9_-]+)([ \t\n])$/);
+/** Pour l'éditeur de raccourcis : `/sig` valide, `sig` ou `/mon sig` non. */
+export function isValidTrigger(value: string): boolean {
+  return VALID_TRIGGER_PATTERN.test(value);
+}
 
-  if (!match) {
-    return null;
+export function normalizeTrigger(value: string): string {
+  const trimmed = value.trim();
+
+  if (trimmed.length === 0) {
+    return '';
   }
 
-  return {
-    trigger: match[1],
-    delimiterLength: match[2].length,
-  };
+  return trimmed.startsWith(TRIGGER_PREFIX) ? trimmed : `${TRIGGER_PREFIX}${trimmed}`;
 }
