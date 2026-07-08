@@ -18,6 +18,10 @@ export async function listShortcuts() {
   return db.shortcuts.orderBy('trigger').toArray();
 }
 
+export async function getShortcutByTrigger(trigger: string) {
+  return db.shortcuts.where('trigger').equals(trigger).first();
+}
+
 export async function saveShortcut(draft: ShortcutDraft, id?: number) {
   const now = Date.now();
   const trigger = draft.trigger.trim();

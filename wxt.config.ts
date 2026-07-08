@@ -7,6 +7,7 @@ export default defineConfig({
     name: 'Local Shortcut Expander',
     description: 'Expand locally stored text shortcuts in browser fields.',
     permissions: ['storage'],
+    host_permissions: ['<all_urls>'],
     action: {
       default_title: 'Local Shortcut Expander',
     },

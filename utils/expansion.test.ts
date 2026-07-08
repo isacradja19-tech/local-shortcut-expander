@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { findExpansion, findTriggerBeforeCaret, isExpansionKey } from './expansion';
+import {
+  findDelimitedTriggerBeforeCaret,
+  findExpansion,
+  findTriggerBeforeCaret,
+  isExpansionKey,
+} from './expansion';
 import type { Shortcut } from './types';
 
 const shortcuts: Shortcut[] = [
@@ -33,6 +38,13 @@ describe('expansion matching', () => {
       shortcut: shortcuts[0],
       start: 6,
       end: 10,
+    });
+  });
+
+  it('finds a trigger after a delimiter has already been inserted', () => {
+    expect(findDelimitedTriggerBeforeCaret('Hello /sig ')).toEqual({
+      trigger: '/sig',
+      delimiterLength: 1,
     });
   });
 });

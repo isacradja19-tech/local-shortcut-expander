@@ -17,6 +17,19 @@ export function findTriggerBeforeCaret(textBeforeCaret: string) {
   return match?.[1] ?? null;
 }
 
+export function findDelimitedTriggerBeforeCaret(textBeforeCaret: string) {
+  const match = textBeforeCaret.match(/(?:^|\s)(\/[A-Za-z0-9_-]+)([ \t\n])$/);
+
+  if (!match) {
+    return null;
+  }
+
+  return {
+    trigger: match[1],
+    delimiterLength: match[2].length,
+  };
+}
+
 export function findExpansion(
   textBeforeCaret: string,
   shortcuts: Shortcut[],

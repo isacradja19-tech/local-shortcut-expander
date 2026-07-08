@@ -3,6 +3,7 @@ export type Shortcut = {
   trigger: string;
   content: string;
   label?: string;
+  enabled?: boolean;
   createdAt: number;
   updatedAt: number;
 };
