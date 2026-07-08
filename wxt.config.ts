@@ -4,12 +4,26 @@ import { defineConfig } from 'wxt';
 export default defineConfig({
   modules: ['@wxt-dev/module-react'],
   manifest: {
-    name: 'Local Shortcut Expander',
-    description: 'Expand locally stored text shortcuts in browser fields.',
+    name: 'Easeit',
+    short_name: 'Easeit',
+    description: 'Create local text shortcuts that expand while you type. No account, no sync, no tracking.',
+    icons: {
+      16: 'icon/icon-16.png',
+      32: 'icon/icon-32.png',
+      48: 'icon/icon-48.png',
+      96: 'icon/icon-96.png',
+      128: 'icon/icon-128.png',
+    },
     permissions: ['storage'],
-    host_permissions: ['<all_urls>'],
     action: {
-      default_title: 'Local Shortcut Expander',
+      default_title: 'Easeit',
+      default_icon: {
+        16: 'icon/icon-16.png',
+        32: 'icon/icon-32.png',
+        48: 'icon/icon-48.png',
+        96: 'icon/icon-96.png',
+        128: 'icon/icon-128.png',
+      },
     },
   },
 });

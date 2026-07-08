@@ -25,7 +25,7 @@ function App() {
   return (
     <main className="popup">
       <header>
-        <h1>Shortcuts</h1>
+        <h1>Easeit</h1>
         <p>{enabled ? 'Expansion is on' : 'Expansion is off'}</p>
       </header>
 

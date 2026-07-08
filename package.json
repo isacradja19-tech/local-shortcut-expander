@@ -1,6 +1,6 @@
 {
-  "name": "local-shortcut-expander",
-  "description": "Local-first browser text shortcut expander",
+  "name": "easeit",
+  "description": "Create local text shortcuts that expand while you type. No account, no sync, no tracking.",
   "private": true,
   "version": "0.0.0",
   "type": "module",

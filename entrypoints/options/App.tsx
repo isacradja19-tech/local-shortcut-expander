@@ -109,21 +109,14 @@ function App() {
     }
   }
 
-  function openTestPage() {
-    window.open('https://example.com/?shortcut-expander-test=1', '_blank');
-  }
-
   return (
     <main className="options-page">
       <section className="toolbar">
         <div>
-          <h1>Shortcut Manager</h1>
+          <h1>Easeit</h1>
           <p>{shortcuts.length} local shortcut(s)</p>
         </div>
         <div className="toolbar-actions">
-          <button type="button" className="secondary" onClick={openTestPage}>
-            Open test field
-          </button>
           <button type="button" onClick={exportBackup} disabled={shortcuts.length === 0}>
             Export JSON
           </button>

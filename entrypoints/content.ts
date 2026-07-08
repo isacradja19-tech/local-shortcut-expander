@@ -10,142 +10,59 @@ import type {
 } from '@/utils/messages';
 import type { Settings } from '@/utils/types';
 
-const DEV_LOGS = true;
-const typedBuffer = {
-  value: '',
-  lastTarget: null as EventTarget | null,
-};
-
 export default defineContentScript({
   matches: ['<all_urls>'],
   allFrames: true,
   main() {
-    log('content script loaded', window.location.href);
-    maybeAddTestField();
     document.addEventListener('keydown', handleKeydown, true);
     document.addEventListener('input', handleInput, true);
-    document.addEventListener('selectionchange', trimTypedBuffer);
   },
 });
 
-function log(...message: unknown[]) {
-  if (DEV_LOGS) {
-    console.info('[Local Shortcut Expander content]', ...message);
-  }
-}
-
-function maybeAddTestField() {
-  const params = new URLSearchParams(window.location.search);
-
-  if (window.location.hostname !== 'example.com' || !params.has('shortcut-expander-test')) {
-    return;
-  }
-
-  const textarea = document.createElement('textarea');
-  textarea.autofocus = true;
-  textarea.placeholder = 'Type /sig then press space';
-  textarea.style.cssText = [
-    'display:block',
-    'width:min(560px, calc(100% - 32px))',
-    'height:160px',
-    'margin:32px auto',
-    'padding:14px',
-    'font:18px system-ui, sans-serif',
-    'border:2px solid #2057a7',
-    'border-radius:8px',
-  ].join(';');
-
-  document.body.prepend(textarea);
-  textarea.focus();
-  log('test field added');
-}
-
 async function handleKeydown(event: KeyboardEvent) {
   try {
-    updateTypedBuffer(event);
-
     if (!isExpansionKey(event.key) || event.ctrlKey || event.metaKey || event.altKey) {
       return;
     }
 
-    log('keydown detected', event.key);
+    const textField = findTextField(event);
 
-    const field = findPlainTextField(event);
-
-    if (field) {
-      await expandPlainTextField(event, field);
+    if (textField) {
+      await expandTextFieldBeforeDelimiter(event, textField);
       return;
     }
 
-    const editable = findContentEditable(event);
+    const editable = findEditableField(event);
 
     if (editable) {
-      await expandContentEditable(event, editable);
-      return;
+      await expandEditableBeforeDelimiter(event, editable);
     }
-
-    await expandUnknownEditor(event);
-  } catch (error) {
-    log('expansion flow failed', error);
+  } catch {
+    // Avoid breaking the host page if a site blocks extension messaging or selection APIs.
   }
 }
 
 async function handleInput(event: Event) {
   try {
-    const field = findPlainTextField(event);
+    const textField = findTextField(event);
 
-    if (field) {
-      await expandPlainTextFieldAfterInput(field);
+    if (textField) {
+      await expandTextFieldAfterDelimiter(textField);
       return;
     }
 
-    const editable = findContentEditable(event);
+    const editable = findEditableField(event);
 
     if (editable) {
-      await expandContentEditableAfterInput(editable);
+      await expandEditableAfterDelimiter(editable);
     }
-  } catch (error) {
-    log('input fallback failed', error);
+  } catch {
+    // Input fallback is best-effort; the page should continue normally on failure.
   }
 }
 
-function updateTypedBuffer(event: KeyboardEvent) {
-  if (event.ctrlKey || event.metaKey || event.altKey) {
-    return;
-  }
-
-  if (typedBuffer.lastTarget !== event.target) {
-    typedBuffer.value = '';
-    typedBuffer.lastTarget = event.target;
-  }
-
-  if (event.key === 'Backspace') {
-    typedBuffer.value = typedBuffer.value.slice(0, -1);
-    return;
-  }
-
-  if (event.key === 'Escape' || event.key.startsWith('Arrow')) {
-    typedBuffer.value = '';
-    return;
-  }
-
-  if (isExpansionKey(event.key)) {
-    return;
-  }
-
-  if (event.key.length === 1) {
-    typedBuffer.value = `${typedBuffer.value}${event.key}`.slice(-80);
-  }
-}
-
-function trimTypedBuffer() {
-  typedBuffer.value = typedBuffer.value.slice(-80);
-}
-
-function findPlainTextField(event: Event) {
-  const targets = event.composedPath();
-
-  for (const target of targets) {
+function findTextField(event: Event) {
+  for (const target of event.composedPath()) {
     if (target instanceof HTMLTextAreaElement) {
       return target;
     }
@@ -155,14 +72,14 @@ function findPlainTextField(event: Event) {
     }
   }
 
-  const active = deepestActiveElement();
+  const activeElement = deepestActiveElement();
 
-  if (active instanceof HTMLTextAreaElement) {
-    return active;
+  if (activeElement instanceof HTMLTextAreaElement) {
+    return activeElement;
   }
 
-  if (active instanceof HTMLInputElement && isTextInput(active)) {
-    return active;
+  if (activeElement instanceof HTMLInputElement && isTextInput(activeElement)) {
+    return activeElement;
   }
 
   return null;
@@ -181,7 +98,7 @@ function isTextInput(input: HTMLInputElement) {
   ].includes(input.type);
 }
 
-function findContentEditable(event: Event) {
+function findEditableField(event: Event) {
   for (const target of event.composedPath()) {
     if (!(target instanceof Element)) {
       continue;
@@ -194,10 +111,10 @@ function findContentEditable(event: Event) {
     }
   }
 
-  const active = deepestActiveElement();
+  const activeElement = deepestActiveElement();
 
-  if (active instanceof HTMLElement && active.isContentEditable) {
-    return active;
+  if (activeElement instanceof HTMLElement && activeElement.isContentEditable) {
+    return activeElement;
   }
 
   const selection = window.getSelection();
@@ -214,16 +131,16 @@ function findContentEditable(event: Event) {
 }
 
 function deepestActiveElement() {
-  let active = document.activeElement;
+  let activeElement = document.activeElement;
 
-  while (active?.shadowRoot?.activeElement) {
-    active = active.shadowRoot.activeElement;
+  while (activeElement?.shadowRoot?.activeElement) {
+    activeElement = activeElement.shadowRoot.activeElement;
   }
 
-  return active;
+  return activeElement;
 }
 
-async function expandPlainTextField(
+async function expandTextFieldBeforeDelimiter(
   event: KeyboardEvent,
   field: HTMLInputElement | HTMLTextAreaElement,
 ) {
@@ -233,37 +150,25 @@ async function expandPlainTextField(
     return;
   }
 
-  const textBeforeCaret = field.value.slice(0, caret);
-  const trigger = findTriggerBeforeCaret(textBeforeCaret);
+  const trigger = findTriggerBeforeCaret(field.value.slice(0, caret));
 
   if (!trigger) {
     return;
   }
 
-  log('trigger detected', trigger);
   event.preventDefault();
 
-  const settings = await getSettingsFromExtension();
-
-  if (!settings.enabled) {
-    log('extension disabled');
-    insertPlainTextDelimiter(field, event.key);
-    return;
-  }
-
-  const body = await getSnippetBodyByTrigger(trigger);
+  const body = await getEnabledSnippetBody(trigger);
 
   if (body === null) {
-    insertPlainTextDelimiter(field, event.key);
+    insertTextFieldDelimiter(field, event.key);
     return;
   }
 
-  log('replacement attempted', trigger);
-  field.setRangeText(body, caret - trigger.length, caret, 'end');
-  field.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertText' }));
+  replaceTextFieldRange(field, caret - trigger.length, caret, body);
 }
 
-async function expandPlainTextFieldAfterInput(
+async function expandTextFieldAfterDelimiter(
   field: HTMLInputElement | HTMLTextAreaElement,
 ) {
   const caret = field.selectionStart;
@@ -272,216 +177,132 @@ async function expandPlainTextFieldAfterInput(
     return;
   }
 
-  const textBeforeCaret = field.value.slice(0, caret);
-  const match = findDelimitedTriggerBeforeCaret(textBeforeCaret);
+  const match = findDelimitedTriggerBeforeCaret(field.value.slice(0, caret));
 
   if (!match) {
     return;
   }
 
-  log('trigger detected', match.trigger);
-
-  const settings = await getSettingsFromExtension();
-
-  if (!settings.enabled) {
-    log('extension disabled');
-    return;
-  }
-
-  const body = await getSnippetBodyByTrigger(match.trigger);
+  const body = await getEnabledSnippetBody(match.trigger);
 
   if (body === null) {
     return;
   }
 
-  log('replacement attempted', match.trigger);
-  const end = caret;
   const start = caret - match.trigger.length - match.delimiterLength;
-  field.setRangeText(body, start, end, 'end');
+  replaceTextFieldRange(field, start, caret, body);
+}
+
+async function expandEditableBeforeDelimiter(event: KeyboardEvent, editable: HTMLElement) {
+  const selectionState = getEditableSelection(editable);
+
+  if (!selectionState) {
+    return;
+  }
+
+  const trigger = findTriggerBeforeCaret(selectionState.textBeforeCaret);
+
+  if (!trigger) {
+    return;
+  }
+
+  event.preventDefault();
+
+  const body = await getEnabledSnippetBody(trigger);
+
+  if (body === null) {
+    insertEditableDelimiter(event.key);
+    return;
+  }
+
+  replaceEditableRange(
+    editable,
+    selectionState.textBeforeCaret.length - trigger.length,
+    selectionState.textBeforeCaret.length,
+    body,
+  );
+}
+
+async function expandEditableAfterDelimiter(editable: HTMLElement) {
+  const selectionState = getEditableSelection(editable);
+
+  if (!selectionState) {
+    return;
+  }
+
+  const match = findDelimitedTriggerBeforeCaret(selectionState.textBeforeCaret);
+
+  if (!match) {
+    return;
+  }
+
+  const body = await getEnabledSnippetBody(match.trigger);
+
+  if (body === null) {
+    return;
+  }
+
+  const end = selectionState.textBeforeCaret.length;
+  const start = end - match.trigger.length - match.delimiterLength;
+  replaceEditableRange(editable, start, end, body);
+}
+
+function getEditableSelection(editable: HTMLElement) {
+  const selection = window.getSelection();
+
+  if (!selection || selection.rangeCount === 0 || !selection.isCollapsed) {
+    return null;
+  }
+
+  const range = selection.getRangeAt(0);
+
+  if (!editable.contains(range.startContainer)) {
+    return null;
+  }
+
+  const beforeCaret = range.cloneRange();
+  beforeCaret.selectNodeContents(editable);
+  beforeCaret.setEnd(range.startContainer, range.startOffset);
+
+  return {
+    selection,
+    textBeforeCaret: beforeCaret.toString(),
+  };
+}
+
+function replaceTextFieldRange(
+  field: HTMLInputElement | HTMLTextAreaElement,
+  start: number,
+  end: number,
+  text: string,
+) {
+  field.setRangeText(text, start, end, 'end');
   field.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertText' }));
 }
 
-async function expandContentEditable(event: KeyboardEvent, editable: HTMLElement) {
+function replaceEditableRange(
+  editable: HTMLElement,
+  startOffset: number,
+  endOffset: number,
+  text: string,
+) {
   const selection = window.getSelection();
-
-  if (!selection || selection.rangeCount === 0 || !selection.isCollapsed) {
-    return;
-  }
-
-  const range = selection.getRangeAt(0);
-
-  if (!editable.contains(range.startContainer)) {
-    return;
-  }
-
-  const beforeRange = range.cloneRange();
-  beforeRange.selectNodeContents(editable);
-  beforeRange.setEnd(range.startContainer, range.startOffset);
-
-  const textBeforeCaret = beforeRange.toString();
-  const trigger = findTriggerBeforeCaret(textBeforeCaret);
-
-  if (!trigger) {
-    return;
-  }
-
-  log('trigger detected', trigger);
-  event.preventDefault();
-
-  const settings = await getSettingsFromExtension();
-
-  if (!settings.enabled) {
-    log('extension disabled');
-    insertContentEditableDelimiter(event.key);
-    return;
-  }
-
-  const body = await getSnippetBodyByTrigger(trigger);
-
-  if (body === null) {
-    insertContentEditableDelimiter(event.key);
-    return;
-  }
-
-  const start = findTextPosition(editable, textBeforeCaret.length - trigger.length);
-  const end = findTextPosition(editable, textBeforeCaret.length);
-
-  if (!start || !end) {
-    return;
-  }
-
-  log('replacement attempted', trigger);
-  const replaceRange = document.createRange();
-  replaceRange.setStart(start.node, start.offset);
-  replaceRange.setEnd(end.node, end.offset);
-  replaceRange.deleteContents();
-  replaceRange.insertNode(document.createTextNode(body));
-  replaceRange.collapse(false);
-  selection.removeAllRanges();
-  selection.addRange(replaceRange);
-  editable.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertText' }));
-}
-
-async function expandContentEditableAfterInput(editable: HTMLElement) {
-  const selection = window.getSelection();
-
-  if (!selection || selection.rangeCount === 0 || !selection.isCollapsed) {
-    return;
-  }
-
-  const range = selection.getRangeAt(0);
-
-  if (!editable.contains(range.startContainer)) {
-    return;
-  }
-
-  const beforeRange = range.cloneRange();
-  beforeRange.selectNodeContents(editable);
-  beforeRange.setEnd(range.startContainer, range.startOffset);
-
-  const textBeforeCaret = beforeRange.toString();
-  const match = findDelimitedTriggerBeforeCaret(textBeforeCaret);
-
-  if (!match) {
-    return;
-  }
-
-  log('trigger detected', match.trigger);
-
-  const settings = await getSettingsFromExtension();
-
-  if (!settings.enabled) {
-    log('extension disabled');
-    return;
-  }
-
-  const body = await getSnippetBodyByTrigger(match.trigger);
-
-  if (body === null) {
-    return;
-  }
-
-  const endOffset = textBeforeCaret.length;
-  const startOffset = endOffset - match.trigger.length - match.delimiterLength;
   const start = findTextPosition(editable, startOffset);
   const end = findTextPosition(editable, endOffset);
 
-  if (!start || !end) {
+  if (!selection || !start || !end) {
     return;
   }
 
-  log('replacement attempted', match.trigger);
-  const replaceRange = document.createRange();
-  replaceRange.setStart(start.node, start.offset);
-  replaceRange.setEnd(end.node, end.offset);
-  replaceRange.deleteContents();
-  replaceRange.insertNode(document.createTextNode(body));
-  replaceRange.collapse(false);
+  const range = document.createRange();
+  range.setStart(start.node, start.offset);
+  range.setEnd(end.node, end.offset);
+  range.deleteContents();
+  range.insertNode(document.createTextNode(text));
+  range.collapse(false);
   selection.removeAllRanges();
-  selection.addRange(replaceRange);
+  selection.addRange(range);
   editable.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertText' }));
-}
-
-async function expandUnknownEditor(event: KeyboardEvent) {
-  const trigger = findTriggerBeforeCaret(typedBuffer.value);
-
-  if (!trigger) {
-    return;
-  }
-
-  log('trigger detected in custom editor', trigger);
-  event.preventDefault();
-
-  const settings = await getSettingsFromExtension();
-
-  if (!settings.enabled) {
-    log('extension disabled');
-    await insertIntoCustomEditor(delimiterText(event.key));
-    return;
-  }
-
-  const body = await getSnippetBodyByTrigger(trigger);
-
-  if (body === null) {
-    await insertIntoCustomEditor(delimiterText(event.key));
-    return;
-  }
-
-  log('replacement attempted in custom editor', trigger);
-  await removeRecentlyTypedTrigger(trigger.length);
-  await insertIntoCustomEditor(body);
-  typedBuffer.value = '';
-}
-
-async function removeRecentlyTypedTrigger(characterCount: number) {
-  for (let index = 0; index < characterCount; index += 1) {
-    document.execCommand('delete');
-    await waitForEditorTick();
-  }
-}
-
-async function insertIntoCustomEditor(text: string) {
-  if (document.execCommand('insertText', false, text)) {
-    return;
-  }
-
-  const active = deepestActiveElement();
-
-  if (active instanceof HTMLElement) {
-    const data = new DataTransfer();
-    data.setData('text/plain', text);
-    active.dispatchEvent(new ClipboardEvent('paste', {
-      bubbles: true,
-      cancelable: true,
-      clipboardData: data,
-    }));
-  }
-}
-
-function waitForEditorTick() {
-  return new Promise<void>((resolve) => {
-    window.setTimeout(resolve, 0);
-  });
 }
 
 function findTextPosition(root: HTMLElement, characterOffset: number) {
@@ -521,16 +342,16 @@ function delimiterText(key: string) {
   return ' ';
 }
 
-function insertPlainTextDelimiter(
+function insertTextFieldDelimiter(
   field: HTMLInputElement | HTMLTextAreaElement,
   key: string,
 ) {
-  const delimiter = delimiterText(key);
-  field.setRangeText(delimiter, field.selectionStart ?? field.value.length, field.selectionEnd ?? field.value.length, 'end');
-  field.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertText' }));
+  const start = field.selectionStart ?? field.value.length;
+  const end = field.selectionEnd ?? field.value.length;
+  replaceTextFieldRange(field, start, end, delimiterText(key));
 }
 
-function insertContentEditableDelimiter(key: string) {
+function insertEditableDelimiter(key: string) {
   const selection = window.getSelection();
 
   if (!selection || selection.rangeCount === 0) {
@@ -545,13 +366,18 @@ function insertContentEditableDelimiter(key: string) {
   selection.addRange(range);
 }
 
-async function getSnippetBodyByTrigger(trigger: string) {
-  log('snippet lookup requested', trigger);
+async function getEnabledSnippetBody(trigger: string) {
+  const settings = await getSettingsFromExtension();
+
+  if (!settings.enabled) {
+    return null;
+  }
+
   const response = await sendRuntimeMessage({
     type: 'GET_SNIPPET_BY_TRIGGER',
     trigger,
   }) as GetSnippetByTriggerResponse;
-  log(response.body === null ? 'snippet not found' : 'snippet found', trigger);
+
   return response.body;
 }
 

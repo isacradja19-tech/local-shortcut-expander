@@ -1,12 +1,4 @@
-import type { Shortcut } from './types';
-
 const TRIGGER_PATTERN = /(?:^|\s)(\/[A-Za-z0-9_-]+)$/;
-
-export type ExpansionMatch = {
-  shortcut: Shortcut;
-  start: number;
-  end: number;
-};
 
 export function isExpansionKey(key: string) {
   return key === ' ' || key === 'Tab' || key === 'Enter';
@@ -27,28 +19,5 @@ export function findDelimitedTriggerBeforeCaret(textBeforeCaret: string) {
   return {
     trigger: match[1],
     delimiterLength: match[2].length,
-  };
-}
-
-export function findExpansion(
-  textBeforeCaret: string,
-  shortcuts: Shortcut[],
-): ExpansionMatch | null {
-  const trigger = findTriggerBeforeCaret(textBeforeCaret);
-
-  if (!trigger) {
-    return null;
-  }
-
-  const shortcut = shortcuts.find((item) => item.trigger === trigger);
-
-  if (!shortcut) {
-    return null;
-  }
-
-  return {
-    shortcut,
-    start: textBeforeCaret.length - trigger.length,
-    end: textBeforeCaret.length,
   };
 }
