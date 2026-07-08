@@ -1,6 +1,6 @@
 .popup {
-  width: 280px;
-  padding: 16px;
+  width: 320px;
+  padding: 18px;
   color: #17202a;
   background: #ffffff;
 }
@@ -11,7 +11,7 @@
 
 .popup h1 {
   margin: 0;
-  font-size: 20px;
+  font-size: 22px;
 }
 
 .popup p {
@@ -19,17 +19,44 @@
   color: #5f6b7a;
 }
 
+.status-panel {
+  display: grid;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid #dde3eb;
+  border-radius: 8px;
+  margin-bottom: 12px;
+  background: #f8fafc;
+}
+
+.status-label {
+  display: block;
+  color: #5f6b7a;
+  font-size: 13px;
+}
+
+.status-panel strong {
+  display: block;
+  margin-top: 2px;
+  font-size: 18px;
+}
+
 .switch {
   display: flex;
   align-items: center;
   gap: 10px;
-  margin-bottom: 14px;
   font-weight: 600;
 }
 
 .switch input {
   width: 20px;
   height: 20px;
+}
+
+.support-note {
+  margin-bottom: 14px;
+  font-size: 13px;
+  line-height: 1.4;
 }
 
 .popup button {

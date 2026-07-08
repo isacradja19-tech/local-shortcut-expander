@@ -26,18 +26,29 @@ function App() {
     <main className="popup">
       <header>
         <h1>Easeit</h1>
-        <p>{enabled ? 'Expansion is on' : 'Expansion is off'}</p>
+        <p>Create local text shortcuts that expand while you type.</p>
       </header>
 
-      <label className="switch">
-        <input
-          checked={enabled}
-          disabled={loading}
-          type="checkbox"
-          onChange={toggleEnabled}
-        />
-        <span>{enabled ? 'Enabled' : 'Disabled'}</span>
-      </label>
+      <section className="status-panel" aria-live="polite">
+        <div>
+          <span className="status-label">Expansion</span>
+          <strong>{enabled ? 'On' : 'Off'}</strong>
+        </div>
+        <label className="switch">
+          <input
+            aria-label="Enable shortcut expansion"
+            checked={enabled}
+            disabled={loading}
+            type="checkbox"
+            onChange={toggleEnabled}
+          />
+          <span>{enabled ? 'Enabled' : 'Disabled'}</span>
+        </label>
+      </section>
+
+      <p className="support-note">
+        Works in most normal text fields. Some complex editors such as Google Docs may not be supported yet.
+      </p>
 
       <button type="button" onClick={openOptionsPage}>
         Manage shortcuts

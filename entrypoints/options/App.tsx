@@ -9,6 +9,7 @@ import { createBackupJson, parseBackupJson } from '@/utils/backup';
 import type { Shortcut, ShortcutDraft } from '@/utils/types';
 
 const EMPTY_DRAFT: ShortcutDraft = { trigger: '/', content: '', label: '' };
+type MessageTone = 'success' | 'error';
 
 function App() {
   const [shortcuts, setShortcuts] = useState<Shortcut[]>([]);
@@ -16,6 +17,7 @@ function App() {
   const [editingId, setEditingId] = useState<number | undefined>();
   const [query, setQuery] = useState('');
   const [message, setMessage] = useState('');
+  const [messageTone, setMessageTone] = useState<MessageTone>('success');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -46,6 +48,11 @@ function App() {
     setEditingId(undefined);
   }
 
+  function showMessage(text: string, tone: MessageTone = 'success') {
+    setMessage(text);
+    setMessageTone(tone);
+  }
+
   async function submitShortcut(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
@@ -53,9 +60,9 @@ function App() {
       await saveShortcut(draft, editingId);
       await refreshShortcuts();
       resetForm();
-      setMessage('Shortcut saved.');
+      showMessage(editingId ? 'Shortcut updated.' : 'Shortcut added.');
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : 'Could not save shortcut.');
+      showMessage(error instanceof Error ? error.message : 'Could not save shortcut.', 'error');
     }
   }
 
@@ -73,9 +80,15 @@ function App() {
       return;
     }
 
+    const confirmed = window.confirm(`Delete ${shortcut.trigger}? This cannot be undone.`);
+
+    if (!confirmed) {
+      return;
+    }
+
     await deleteShortcut(shortcut.id);
     await refreshShortcuts();
-    setMessage('Shortcut deleted.');
+    showMessage('Shortcut deleted.');
   }
 
   function exportBackup() {
@@ -88,6 +101,7 @@ function App() {
     link.download = 'shortcut-backup.json';
     link.click();
     URL.revokeObjectURL(url);
+    showMessage('Backup exported.');
   }
 
   async function importBackup(event: React.ChangeEvent<HTMLInputElement>) {
@@ -101,9 +115,9 @@ function App() {
       const importedShortcuts = parseBackupJson(await file.text());
       await importShortcuts(importedShortcuts);
       await refreshShortcuts();
-      setMessage(`Imported ${importedShortcuts.length} shortcut(s).`);
+      showMessage(`Imported ${importedShortcuts.length} shortcut(s).`);
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : 'Could not import backup.');
+      showMessage(error instanceof Error ? error.message : 'Could not import backup.', 'error');
     } finally {
       event.target.value = '';
     }
@@ -114,14 +128,14 @@ function App() {
       <section className="toolbar">
         <div>
           <h1>Easeit</h1>
-          <p>{shortcuts.length} local shortcut(s)</p>
+          <p>Create local text shortcuts that expand while you type.</p>
         </div>
         <div className="toolbar-actions">
           <button type="button" onClick={exportBackup} disabled={shortcuts.length === 0}>
-            Export JSON
+            Export backup
           </button>
           <button type="button" onClick={() => fileInputRef.current?.click()}>
-            Import JSON
+            Import backup
           </button>
           <input
             ref={fileInputRef}
@@ -133,18 +147,27 @@ function App() {
         </div>
       </section>
 
+      <p className="support-note">
+        Works in most normal text fields. Some complex editors such as Google Docs may not be supported yet.
+      </p>
+
       <section className="editor">
+        <h2>{editingId ? 'Edit shortcut' : 'Create shortcut'}</h2>
         <form onSubmit={submitShortcut}>
           <label>
-            Trigger
+            Trigger, such as /sig
             <input
+              aria-describedby="trigger-help"
               value={draft.trigger}
               placeholder="/sig"
               onChange={(event) => setDraft({ ...draft, trigger: event.target.value })}
             />
+            <span id="trigger-help" className="field-help">
+              Start with a slash. Expand it by typing the trigger followed by space, tab, or enter.
+            </span>
           </label>
           <label>
-            Name
+            Name, optional
             <input
               value={draft.label}
               placeholder="Email signature"
@@ -152,7 +175,7 @@ function App() {
             />
           </label>
           <label className="wide-field">
-            Text
+            Text to insert
             <textarea
               value={draft.content}
               placeholder="Thanks,&#10;Your name"
@@ -173,13 +196,34 @@ function App() {
 
       <section className="shortcut-list">
         <div className="search-row">
-          <input
-            value={query}
-            placeholder="Search shortcuts"
-            onChange={(event) => setQuery(event.target.value)}
-          />
-          {message && <span>{message}</span>}
+          <label className="search-label">
+            <span className="sr-only">Search shortcuts</span>
+            <input
+              value={query}
+              placeholder="Search shortcuts"
+              onChange={(event) => setQuery(event.target.value)}
+            />
+          </label>
+          {message && (
+            <span className={`message ${messageTone}`} role="status">
+              {message}
+            </span>
+          )}
         </div>
+
+        {shortcuts.length === 0 && (
+          <div className="empty-state">
+            <h2>No shortcuts yet</h2>
+            <p>Create your first shortcut above. Try `/sig` for an email signature.</p>
+          </div>
+        )}
+
+        {shortcuts.length > 0 && filteredShortcuts.length === 0 && (
+          <div className="empty-state">
+            <h2>No matches</h2>
+            <p>Try a different search term.</p>
+          </div>
+        )}
 
         {filteredShortcuts.map((shortcut) => (
           <article key={shortcut.id} className="shortcut-item">

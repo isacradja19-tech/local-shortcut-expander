@@ -48,6 +48,13 @@ button:disabled {
   opacity: 0.6;
 }
 
+button:focus-visible,
+input:focus-visible,
+textarea:focus-visible {
+  outline: 3px solid #8bb7ff;
+  outline-offset: 2px;
+}
+
 input,
 textarea {
   width: 100%;
@@ -91,6 +98,12 @@ textarea {
   color: #5f6b7a;
 }
 
+.support-note {
+  margin: -8px 0 20px;
+  color: #44515f;
+  line-height: 1.5;
+}
+
 .toolbar-actions,
 .form-actions,
 .item-actions {
@@ -100,6 +113,11 @@ textarea {
 
 .hidden-input {
   display: none;
+}
+
+.editor h2 {
+  margin: 0 0 10px;
+  font-size: 20px;
 }
 
 .editor form {
@@ -118,6 +136,13 @@ textarea {
   font-weight: 700;
 }
 
+.field-help {
+  color: #5f6b7a;
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 1.4;
+}
+
 .wide-field,
 .form-actions {
   grid-column: 1 / -1;
@@ -131,9 +156,52 @@ textarea {
   margin-bottom: 12px;
 }
 
-.search-row span {
-  color: #37613b;
+.search-label {
+  display: block;
+}
+
+.message {
+  border-radius: 8px;
+  padding: 8px 10px;
   font-weight: 700;
+}
+
+.message.success {
+  color: #1f5e2b;
+  background: #eaf7ee;
+}
+
+.message.error {
+  color: #8a1f17;
+  background: #fdeceb;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.empty-state {
+  padding: 22px;
+  border: 1px dashed #b7c2cf;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.empty-state h2 {
+  margin: 0;
+  font-size: 20px;
+}
+
+.empty-state p {
+  margin: 6px 0 0;
+  color: #37613b;
 }
 
 .shortcut-item {
@@ -182,5 +250,11 @@ textarea {
   .form-actions,
   .item-actions {
     flex-wrap: wrap;
+  }
+
+  .toolbar-actions button,
+  .form-actions button,
+  .item-actions button {
+    flex: 1 1 160px;
   }
 }
